@@ -1,0 +1,57 @@
+Import all necessary libraries
+
+import pandas as pd
+from numpy import asarray
+from numpy import sqrt
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LSTM
+
+
+
+d=pd.read_csv("BRITANNIA.csv",header=0,index_col=0,squeeze=True)
+# print(d)
+d=d.tail(1306)
+# print(d)
+d=d.loc[:,['Close']]
+# print(d)
+values=d.values.astype("float32")
+
+def split_sequence(sequence,n_steps):
+    x,y=list(),list()
+    for i in range(len(sequence)):
+        end_ix=i + n_steps
+        if end_ix>len(sequence)-1:
+            break
+        
+        seqx,seqy=sequence[i:end_ix], sequence[end_ix]
+        x.append(seqx)
+        y.append(seqy)
+    return asarray(x),asarray(y) 
+
+
+n_steps=5
+x,y=split_sequence(values,n_steps)
+# reshape into [samples,timesteps,features]
+x=x.reshape((x.shape[0],x.shape[1],1))
+n_test=12
+xtrain,xtest,ytrain,ytest=x[:-n_test],x[:-n_test:],y[:-n_test],y[:-n_test:]
+
+
+
+model=Sequential()
+model.add(LSTM(200,activation='relu',kernel_initializer='he_normal',input_shape=(n_steps,1)))
+model.add(Dense(100,activation='relu',kernel_initializer="he_normal"))
+model.add(Dense(100,activation='relu',kernel_initializer="he_normal"))
+model.add(Dense(1))
+model.compile(optimizer='Adam',loss="mse",metrics=['mae'])
+model.fit(xtrain,ytrain,epochs=350,batch_size=32,verbose=2,validation_data=(xtest,ytest))
+mse,mae=model.evaluate(xtest,ytest,verbose=0)
+print("MSE: %.3f,RMSE: %.3f, MAE: %.3f" % (mse,sqrt(mse),mae))
+xtest=asarray([3812.75,3746,3692.7,3696.5,3742.8]).reshape((1,n_steps,1))  
+ypred=model.predict(xtest)
+print("Predicted: %.3f"%(ypred))
+
+
+Actual output=3729.9
+Predicted Output=3715.8
